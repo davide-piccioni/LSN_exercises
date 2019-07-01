@@ -1,0 +1,126 @@
+/****************************************************************
+*****************************************************************
+    _/    _/  _/_/_/  _/       Numerical Simulation Laboratory
+   _/_/  _/ _/       _/       Physics Department
+  _/  _/_/    _/    _/       Universita' degli Studi di Milano
+ _/    _/       _/ _/       Prof. D.E. Galli
+_/    _/  _/_/_/  _/_/_/_/ email: Davide.Galli@unimi.it
+*****************************************************************
+*****************************************************************/
+
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <cmath>
+#include "random.h"
+
+
+using namespace std;
+ 
+int main (int argc, char *argv[]){
+
+   Random rnd;
+   int seed[4];
+   int p1, p2;
+   ifstream Primes("Primes");
+   if (Primes.is_open()){
+      Primes >> p1 >> p2 ;
+   } else cerr << "PROBLEM: Unable to open Primes" << endl;
+   Primes.close();
+
+   ifstream input("seed.in");
+   string property;
+   if (input.is_open()){
+      while ( !input.eof() ){
+         input >> property;
+         if( property == "RANDOMSEED" ){
+            input >> seed[0] >> seed[1] >> seed[2] >> seed[3];
+            rnd.SetRandom(seed,p1,p2);
+         }
+      }
+      input.close();
+   } else cerr << "PROBLEM: Unable to open seed.in" << endl;
+
+   /////////////////////////////////////////////////
+   //Da qui inizia il programma
+   
+   unsigned int k=10000;//Numero di blocchi
+   unsigned int L[4]={1,2,10,100}; //Elemeni per blocco, in 4 casi diversi.
+     
+   //Costruisco i vettori che contengono gli S_N, 4 ciascuno per i 4 casi di lunghezza
+   double * dado_norm[4];
+   double * dado_exp[4];
+   double * dado_lor[4];
+
+   for(unsigned int j=0;j<4;j++){
+   dado_norm[j]=new double[k];
+   dado_exp[j]=new double[k];
+   dado_lor[j]=new double[k];
+   }
+   
+   //Riempio i blocchi
+   for(unsigned int i=0;i<4;i++){//4 cicli, uno per ciascun valore di L
+     for(unsigned int m=0;m<k;m++){//10000 blocchi
+       dado_norm[i][m]=0.;
+       dado_exp[i][m]=0.;
+       dado_lor[i][m]=0.;
+       for(unsigned int j=0;j<(L[i]);j++){
+	 dado_norm[i][m]+=int(rnd.Rannyu(1,7));
+	 dado_exp[i][m]+=rnd.Exp(1);
+	 dado_lor[i][m]+=rnd.Lorentz(0,1);
+       }
+       dado_norm[i][m]=dado_norm[i][m]/L[i];
+       dado_exp[i][m]=dado_exp[i][m]/L[i];
+       dado_lor[i][m]=dado_lor[i][m]/L[i];
+     }
+   }
+
+   //Stampo i dadi normali
+   ofstream file_out;
+   file_out.open("dado_norm.dat");
+   
+   for(unsigned int m=0;m<k;m++){//10000 blocchi
+     for(unsigned int i=0;i<4;i++){//4 cicli per 4 L diversi
+       file_out<<dado_norm[i][m]<<" ";
+     }
+     file_out<<endl;
+   }
+   file_out.close();
+
+   //Stampo i dadi esponenziali
+   file_out.open("dado_exp.dat");
+   
+   for(unsigned int m=0;m<k;m++){//10000 blocchi
+     for(unsigned int i=0;i<4;i++){//4 cicli per 4 L diversi
+       file_out<<dado_exp[i][m]<<" ";
+     }
+     file_out<<endl;
+   }
+   file_out.close();
+
+   //Stampo i dadi lorentziani
+   file_out.open("dado_lor.dat");
+   
+   for(unsigned int m=0;m<k;m++){//10000 blocchi
+     for(unsigned int i=0;i<4;i++){//4 cicli per 4 L diversi
+       file_out<<dado_lor[i][m]<<" ";
+     }
+     file_out<<endl;
+   }
+   file_out.close();
+      
+   return 0;
+}
+
+
+
+
+/****************************************************************
+*****************************************************************
+    _/    _/  _/_/_/  _/       Numerical Simulation Laboratory
+   _/_/  _/ _/       _/       Physics Department
+  _/  _/_/    _/    _/       Universita' degli Studi di Milano
+ _/    _/       _/ _/       Prof. D.E. Galli
+_/    _/  _/_/_/  _/_/_/_/ email: Davide.Galli@unimi.it
+*****************************************************************
+*****************************************************************/

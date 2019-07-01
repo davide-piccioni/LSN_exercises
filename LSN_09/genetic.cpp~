@@ -1,0 +1,382 @@
+/****************************************************************
+*****************************************************************
+    _/    _/  _/_/_/  _/       Numerical Simulation Laboratory
+   _/_/  _/ _/       _/       Physics Department
+  _/  _/_/    _/    _/       Universita' degli Studi di Milano
+ _/    _/       _/ _/       Prof. D.E. Galli
+_/    _/  _/_/_/  _/_/_/_/ email: Davide.Galli@unimi.it
+*****************************************************************
+*****************************************************************/
+
+#include <iostream>
+#include <fstream>
+#include <cmath>
+#include <cstdlib>
+#include <algorithm> //Random_shuffle, sort
+#include "genetic.h"
+
+
+gensalesman :: gensalesman(const char* file_input){
+  
+  ////////////////////////////////////
+  //Inizializzo generatore di numeri casuali
+  int seed[4];
+  int p1, p2;
+  ifstream Primes("Primes");
+  if (Primes.is_open()){
+    Primes >> p1 >> p2 ;
+  } else cerr << "PROBLEM: Unable to open Primes" << endl;
+  Primes.close();
+  
+  ifstream input("seed.in");
+  string property;
+  if (input.is_open()){
+    while ( !input.eof() ){
+      input >> property;
+      if( property == "RANDOMSEED" ){
+	input >> seed[0] >> seed[1] >> seed[2] >> seed[3];
+	rnd.SetRandom(seed,p1,p2);
+      }
+    }
+    input.close();
+  } else cerr << "PROBLEM: Unable to open seed.in" << endl;
+  ////////////////////////////////////
+
+  ifstream file_in;
+  file_in.open(file_input);
+  
+  if(file_in.fail() ){
+  cout<<"Errore in lettura file"<<endl;
+  }
+  
+  file_in>>N;
+  
+  //Inizializzo tutto
+  sorted=0;
+
+  //Per forma di elitarismo
+  /*
+  elitary.resize(N);
+  n_marriage=0;
+  */
+  
+  raw_population.resize(N*N);
+  
+  for(int i=0;i<N*N;i++){
+    raw_population[i].alleles.resize(N);
+  }
+
+  cities_x.resize(N);
+  cities_y.resize(N);
+  
+  //Leggo le posizioni delle citta'
+  for(int i=0;i<N;i++){
+    file_in>>cities_x[i];
+    file_in>>cities_y[i];
+  }
+  
+  //Genero la prima popolazione
+  
+  //Parto dal primo cromosoma
+  for(int i=0;i<N;i++){
+    raw_population[0].alleles[i]=i+1;
+  }
+  random_shuffle ( raw_population[0].alleles.begin(), raw_population[0].alleles.end() );
+  
+  for(int i=1;i<N*N;i++){
+    raw_population[i]=raw_population[i-1];
+    random_shuffle ( raw_population[i].alleles.begin(), raw_population[i].alleles.end() );
+  }
+
+  /*
+  cout<<endl;
+  for(int j=0;j<N;j++){
+    cout<<raw_population[0].alleles[j]<<' ';
+  }
+  cout<<endl;
+  */
+}
+
+bool gensalesman :: check_population(){
+
+  bool check_param=0;
+
+  vector <int> prova(N);
+  
+  for(int i=0;i<N*N;i++){
+    prova=raw_population[i].alleles;
+    sort( prova.begin(), prova.end() );
+    for(int j=0;j<N;j++){
+      if(prova[j]!=j+1 and check_param==0){
+        check_param=1;
+      }
+    }
+  }
+
+  if(check_param==1){
+    cout<<endl<<"Problema con la popolazione: valori non sensati!!!"<<endl;
+  }
+  
+  return check_param;
+}
+
+void gensalesman :: sort_popul(){
+
+  //Innanzitutto calcolo i valori di L(x) per ogni cromosoma
+  for(int i=0;i<N*N;i++){
+    raw_population[i].L=0.;
+    //Calcola L tra tutte le città contigue nel vettore
+    for(int j=0;j<N-1;j++){
+      raw_population[i].L += sqrt(  pow(cities_x[ raw_population[i].alleles[j+1]-1 ]-cities_x[ raw_population[i].alleles[j]-1 ],2) + pow(cities_y[ raw_population[i].alleles[j+1]-1 ]-cities_y[ raw_population[i].alleles[j]-1 ],2)  );
+    }
+    //Calcola L anche tra la prima e l'ultima citta'
+    raw_population[i].L += sqrt(  pow(cities_x[ raw_population[i].alleles[N-1]-1 ]-cities_x[ raw_population[i].alleles[0]-1 ],2) + pow(cities_y[ raw_population[i].alleles[N-1]-1 ]-cities_y[ raw_population[i].alleles[0]-1 ],2)  );
+    //cout<<endl<<raw_population[i].L<<endl;
+  }
+  
+  sort(raw_population.begin(), raw_population.end(), sortByL );
+
+  sorted=1;
+  
+  return;
+}
+
+void gensalesman :: exchange(){
+
+  for(int i=0;i<N*N;i++){
+    if(rnd.Rannyu()<prob_mutation){//Sarebbe più efficiente simulare una binomiale e fissare così il numero di mutati, poi sceglierli a caso
+      int mutated_1=rnd.Rannyu()*N;
+      int mutated_2=0;
+      do{mutated_2=rnd.Rannyu()*N;}while(mutated_2==mutated_1);    
+      int appo= raw_population[i].alleles[mutated_1];
+      raw_population[i].alleles[mutated_1]=raw_population[i].alleles[mutated_2];
+      raw_population[i].alleles[mutated_2]=appo;
+    }
+  }
+  
+  sorted=0;
+  
+  return;
+}
+
+void gensalesman :: global_shift(){
+
+  for(int i=0;i<N*N;i++){
+    if(rnd.Rannyu()<prob_mutation){//Sarebbe più efficiente simulare una binomiale e fissare così il numero di mutati, poi sceglierli a caso
+      
+      rotate( raw_population[i].alleles.begin(),raw_population[i].alleles.begin()+int( rnd.Rannyu(1,N) ),raw_population[i].alleles.end() );
+    }
+  }  
+  return;
+}
+
+void gensalesman :: local_shift(){
+
+  for(int i=0;i<N*N;i++){
+    if(rnd.Rannyu()<prob_mutation){ 
+      int first_index=int( rnd.Rannyu()*(N-2) );
+      int last_index=int( rnd.Rannyu(1,(N-first_index)/2) );
+      rotate( raw_population[i].alleles.begin()+first_index,raw_population[i].alleles.begin()+first_index+last_index,raw_population[i].alleles.begin() + first_index + 2*last_index );
+    }
+  }
+  
+  sorted=0;
+  
+  return;
+}
+
+void gensalesman :: local_permut(){
+
+  for(int i=0;i<N*N;i++){
+    if(rnd.Rannyu()<prob_mutation){
+      int first_index=int( rnd.Rannyu(0,N-3) );
+      int second_index=int( rnd.Rannyu(first_index+1,N-2)  );
+      int third_index=int( rnd.Rannyu(second_index+1,N-1) );
+      int last_index=int( rnd.Rannyu(third_index+1,N) );
+      
+      vector <int> appoggio((1+second_index-first_index)+(1+last_index-third_index));
+      int conta=0;
+      for(int k=first_index;k<=second_index;k++){
+	appoggio[conta]=raw_population[i].alleles[k];
+	conta++;
+      }
+      for(int k=third_index;k<=last_index;k++){
+	appoggio[conta]=raw_population[i].alleles[k];
+	conta++;
+      }
+
+      random_shuffle( appoggio.begin(),appoggio.end() );
+      
+      conta=0;
+      for(int k=first_index;k<=second_index;k++){
+	raw_population[i].alleles[k]=appoggio[conta];
+	conta++;
+      }
+      for(int k=third_index;k<=last_index;k++){
+	raw_population[i].alleles[k]=appoggio[conta];
+	conta++;
+      }
+    }
+  }
+    
+  sorted=0;
+  
+  return;
+}
+
+void gensalesman :: inversion(){
+
+  for(int i=0;i<N*N;i++){
+    if(rnd.Rannyu()<prob_mutation){      
+      reverse( raw_population[i].alleles.begin(),raw_population[i].alleles.end() );
+    }
+  }
+    
+  sorted=0;
+  
+  return;
+}
+
+void gensalesman :: mutate(){
+
+  exchange();
+  global_shift();
+  local_shift();
+  global_shift();
+  local_permut();
+  inversion();
+  
+  return;
+}
+
+double  gensalesman :: best_L(){
+  if(sorted==0){
+    sort_popul();
+  }
+  return raw_population[0].L;
+}
+
+void gensalesman :: print_popul(){
+  
+  if(sorted==0){
+    sort_popul();
+  }
+  
+  cout<<endl<<"Printing the entire population"<<endl;
+  for(int i=1;i<N*N;i++){
+    cout<<endl;
+    cout<<"L = "<<raw_population[i].L<<"; ";
+    for(int j=0;j<N;j++){
+      cout<<raw_population[i].alleles[j]<<' ';
+    }
+    cout<<endl;
+  }
+  
+  return;
+}
+
+void gensalesman :: marriage(){
+  
+  if(sorted==0){
+    sort_popul();
+  }
+
+  //Per elitarismo
+  /*
+  n_marriage++;
+  //Alle generazioni 1, 11, 21 ... salva l'elitario
+  if(n_marriage%10==1){
+    elitary=raw_population[0].alleles;
+  }
+  //Alle generazioni 10, 20, 30 ... ributta dentro l'elitario
+  if(n_marriage%10==0){
+    raw_population[N-1].alleles=elitary;
+    sort_popul();
+  }
+  */
+  
+  int** new_pop=new int*[N*N];
+  for(int k=0;k<N*N;k++){
+    new_pop[k]=new int[N];
+  }
+  
+  for(int k=0;k<N*N;k=k+2){
+    
+    const int expon=3;  
+    int first_parent=int( N*pow(rnd.Rannyu(),expon) );
+    int second_parent=0;
+    do{second_parent=int( N*pow(rnd.Rannyu(),expon) );}while(second_parent==first_parent);
+
+    //Stabilisco dove fare il taglio e poi riempio dei vettori di appoggio con gli indici che dicono dove stanno gli elementi necessari nell'altro genitore
+    int crossover=N*rnd.Rannyu();
+    for(int j=0;j<crossover;j++){
+      new_pop[k][j]=raw_population[first_parent].alleles[j];
+      new_pop[k+1][j]=raw_population[second_parent].alleles[j];
+    }
+
+    vector <int> appoggio;
+    for(int j=crossover;j<N;j++){
+      int indice_muto=distance(raw_population[second_parent].alleles.begin(), find(raw_population[second_parent].alleles.begin(),raw_population[second_parent].alleles.end(),raw_population[first_parent].alleles[j]) ); 
+      appoggio.push_back(indice_muto );
+    }
+
+    sort( appoggio.begin(),appoggio.end() );
+    
+    for(int j=crossover;j<N;j++){
+      new_pop[k][j]=raw_population[second_parent].alleles[ appoggio[j-crossover] ];
+    }
+
+    for(int j=crossover;j<N;j++){
+      int indice_muto=distance(raw_population[first_parent].alleles.begin(), find(raw_population[first_parent].alleles.begin(),raw_population[first_parent].alleles.end(),raw_population[second_parent].alleles[j]) ); 
+      appoggio[j-crossover]=indice_muto;
+    }
+
+    sort( appoggio.begin(),appoggio.end() );
+    
+    for(int j=crossover;j<N;j++){
+      new_pop[k+1][j]=raw_population[first_parent].alleles[ appoggio[j-crossover] ];
+    }
+
+  }
+  
+  for(int k=0;k<N*N;k++){
+    for(int l=0;l<N;l++){
+      raw_population[k].alleles[l]=new_pop[k][l];
+    }
+  }
+
+  for(int k=0;k<N*N;k++){
+      delete [] new_pop[k];
+  }
+  delete [] new_pop;
+  
+  return;
+}
+
+void  gensalesman :: print_bestroute(const char* outfile){
+  if(sorted==0){
+    sort_popul();
+    sorted=1;
+  }
+  ofstream file_out;
+  file_out.open(outfile);
+  for(int l=0;l<N;l++){
+    file_out<<cities_x[raw_population[0].alleles[l]-1]<<" "<<cities_y[raw_population[0].alleles[l]-1]<<endl;
+  }
+}
+
+bool sortByL(const chromosome &lhs, const chromosome &rhs) { return lhs.L < rhs.L; }
+
+gensalesman :: ~gensalesman(){
+
+}
+
+/****************************************************************
+*****************************************************************
+    _/    _/  _/_/_/  _/       Numerical Simulation Laboratory
+   _/_/  _/ _/       _/       Physics Department
+  _/  _/_/    _/    _/       Universita' degli Studi di Milano
+ _/    _/       _/ _/       Prof. D.E. Galli
+_/    _/  _/_/_/  _/_/_/_/ email: Davide.Galli@unimi.it
+*****************************************************************
+*****************************************************************/

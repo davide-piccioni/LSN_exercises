@@ -1,0 +1,184 @@
+/****************************************************************
+*****************************************************************
+    _/    _/  _/_/_/  _/       Numerical Simulation Laboratory
+   _/_/  _/ _/       _/       Physics Department
+  _/  _/_/    _/    _/       Universita' degli Studi di Milano
+ _/    _/       _/ _/       Prof. D.E. Galli
+_/    _/  _/_/_/  _/_/_/_/ email: Davide.Galli@unimi.it
+*****************************************************************
+*****************************************************************/
+
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <cmath>
+#include "monteC.h"
+
+
+using namespace std;
+
+
+double psi(double x, double y, double z);
+double psi_2(double x, double y, double z);
+
+int main (int argc, char *argv[]){
+  
+  //Inizializzo generatore
+  ////////////////////////
+   Random rnd;
+   int seed[4];
+   int p1, p2;
+   ifstream Primes("Primes");
+   if (Primes.is_open()){
+      Primes >> p1 >> p2 ;
+   } else cerr << "PROBLEM: Unable to open Primes" << endl;
+   Primes.close();
+
+   ifstream input("seed.in");
+   string property;
+   if (input.is_open()){
+      while ( !input.eof() ){
+         input >> property;
+         if( property == "RANDOMSEED" ){
+            input >> seed[0] >> seed[1] >> seed[2] >> seed[3];
+            rnd.SetRandom(seed,p1,p2);
+         }
+      }
+      input.close();
+   } else cerr << "PROBLEM: Unable to open seed.in" << endl;
+   //////////////////////////////////////
+
+   int state=2;
+   do{
+     cout<<"Insert 0 if you want to select the ground stat of the hydrogen atom, 1 for the excited (2,1,0) state"<<endl;
+     cin>>state;
+   }while(state!=0 and state!=1);
+
+   int transition=2;
+   do{
+     cout<<"Insert 0 if you want to select a uniform transition probability, 1 for a gaussian one."<<endl;
+     cin>>transition;
+   }while(transition!=0 and transition!=1);
+     
+     
+   ofstream file_out;
+   if(state==0){
+     file_out.open("risultati_1s.dat");
+   }
+   else{
+     file_out.open("risultati_2p.dat");
+   }
+ 
+   unsigned int N=1000100; //Passi
+
+   double x[3];
+   double delta=1.;
+   double gauss_delta=1.;
+   
+   if(state==0){
+     delta=1.2;
+     gauss_delta=0.75;
+   }
+   else{
+     delta=2.8;
+     gauss_delta=1.8;
+   }
+   
+   int conta_accetta=0;
+   double* raw_r = new double[N];
+   
+   //Posizioni iniziali
+   x[0]=1.;
+   x[1]=1.;
+   x[2]=1.;
+
+   for(unsigned int i=0; i<N; i++){//Passi
+
+     //if(i%(N/100)==0){cout<<i<<" su "<<N<<endl;}
+   
+     //Genero tre valori uniformemente distribuiti con passo delta
+     double x_new[3];
+       
+     for(int j=0;j<3;j++){
+       
+       if(transition==0){
+	 x_new[j]=x[j]+delta*rnd.Rannyu(-1,+1);
+       }
+       else{
+	 x_new[j]=rnd.Gauss(x[j],gauss_delta);
+       }
+       
+     }
+ 
+     //Uso Metropolis
+     double alpha=0;
+     if(state==0){
+       alpha=psi(x_new[0],x_new[1],x_new[2])/psi(x[0],x[1],x[2]);
+     }
+     else{
+       alpha=psi_2(x_new[0],x_new[1],x_new[2])/psi_2(x[0],x[1],x[2]);
+     }
+     //if(alpha>1){alpha=1;}//Serve a fare il minimo, ma credo sia inutile.
+     if(rnd.Rannyu()<=alpha){
+       for(int j=0;j<3;j++){
+         x[j]=x_new[j];
+       }
+     conta_accetta++;
+     }
+     
+     raw_r[i]=sqrt(x[0]*x[0]+x[1]*x[1]+x[2]*x[2]);
+     
+     if(i%(N/100)==0 and i<=(N/10)){cout<<endl<<"Accettazione: "<<conta_accetta/double(i+1)<<" a "<<i/(N/100)<<"% dei passi effettuati"<< endl;}
+     
+     if(i%10==0){file_out<<x[0]<<" "<<x[1]<<" "<<x[2]<<" "<<raw_r[i]<<endl;}
+             
+     }
+     
+     
+     //Ora creo un oggetto che stimi le incertezze con il metodo dei blocchi
+     int dati_saltati=100;
+     
+     monteC stima(raw_r +dati_saltati,N-dati_saltati,100);//L'ultimo valore e' il numero dei blocchi
+     
+     stima.statistica();
+
+     if(state==0 and transition==0){
+       stima.stampa("raggi_1s_unif.dat");
+     }
+     else{
+       if(state==0 and transition==1){
+	 stima.stampa("raggi_1s_gauss.dat");
+       }
+       else{
+	 if(state==1 and transition==0){
+	   stima.stampa("raggi_2p_unif.dat");
+	 }
+	 else{
+	   stima.stampa("raggi_2p_gauss.dat");
+	 }
+       }
+     }   
+   
+   file_out.close();
+   return 0;
+}
+
+double psi(double x, double y, double z){
+  double r=sqrt(x*x+y*y+z*z);
+  return (1/M_PI)*exp(-2*r);
+}
+
+double psi_2(double x, double y, double z){
+  double r=sqrt(x*x+y*y+z*z);
+  return ((z*z)/(32*M_PI))*exp(-r);
+}
+
+/****************************************************************
+*****************************************************************
+    _/    _/  _/_/_/  _/       Numerical Simulation Laboratory
+   _/_/  _/ _/       _/       Physics Department
+  _/  _/_/    _/    _/       Universita' degli Studi di Milano
+ _/    _/       _/ _/       Prof. D.E. Galli
+_/    _/  _/_/_/  _/_/_/_/ email: Davide.Galli@unimi.it
+*****************************************************************
+*****************************************************************/

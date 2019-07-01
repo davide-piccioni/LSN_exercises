@@ -1,0 +1,10 @@
+rm -rf output.*
+rm -rf seed.out
+#rm -rf config.final
+rm -rf output.ene.0
+rm -rf output.heat.0
+rm -rf output.magn.0
+rm -rf T-U.dat
+rm -rf T-C.dat
+rm -rf T-X.dat
+rm -rf T-M.dat

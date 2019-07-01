@@ -1,0 +1,48 @@
+/****************************************************************
+*****************************************************************
+    _/    _/  _/_/_/  _/       Numerical Simulation Laboratory
+   _/_/  _/ _/       _/       Physics Department
+  _/  _/_/    _/    _/       Universita' degli Studi di Milano
+ _/    _/       _/ _/       Prof. D.E. Galli
+_/    _/  _/_/_/  _/_/_/_/ email: Davide.Galli@unimi.it
+*****************************************************************
+*****************************************************************/
+
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <cmath>
+#include "genetic.h"
+
+using namespace std;
+
+int main (){
+  
+  gensalesman primo("square_cities_100.dat");
+  int n_generations = 1000;
+  
+  for(int generations=0;generations<n_generations;generations++){  
+    primo.check_population();
+    primo.sort_popul();
+    cout<<endl<<"Generazione: "<<generations<<", L_best = "<<primo.best_L()<<endl;
+    primo.marriage();
+    primo.mutate();
+    primo.check_population();
+  }
+  cout<<endl<<"Generazione: "<<n_generations<<", L_best = "<<primo.best_L()<<endl;
+  primo.print_bestroute("final_sqrt_100.dat");
+  
+ return 0;
+}
+
+
+
+/****************************************************************
+*****************************************************************
+    _/    _/  _/_/_/  _/       Numerical Simulation Laboratory
+   _/_/  _/ _/       _/       Physics Department
+  _/  _/_/    _/    _/       Universita' degli Studi di Milano
+ _/    _/       _/ _/       Prof. D.E. Galli
+_/    _/  _/_/_/  _/_/_/_/ email: Davide.Galli@unimi.it
+*****************************************************************
+*****************************************************************/

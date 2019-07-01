@@ -1,0 +1,117 @@
+/****************************************************************
+*****************************************************************
+    _/    _/  _/_/_/  _/       Numerical Simulation Laboratory
+   _/_/  _/ _/       _/       Physics Department
+  _/  _/_/    _/    _/       Universita' degli Studi di Milano
+ _/    _/       _/ _/       Prof. D.E. Galli
+_/    _/  _/_/_/  _/_/_/_/ email: Davide.Galli@unimi.it
+*****************************************************************
+*****************************************************************/
+
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <cstring>
+#include <cmath>
+#include <mpi.h>
+#include "TSP_sim_ann.h"
+
+using namespace std;
+
+int main (int argc, char* argv[]){
+
+  MPI::Init(argc,argv);
+  
+  int size = MPI::COMM_WORLD.Get_size();
+  int rank = MPI::COMM_WORLD.Get_rank();
+
+  if(size>4){
+    cout<<"Hai scelto troppi processi"<<endl;
+    return 1;
+  }
+  
+  double irecv[4];
+  for(int i=0;i<size;i++){
+    irecv[i]=0;
+  }
+  
+  //Directory where to find input and send output
+  //The input must always be of the form initial_cities.dat
+  string locus="./Square_100/";
+
+  //String operations so that changing the directory is implemented
+  string _input=locus+"initial_cities.dat";
+  char input[_input.size()+1];
+  strcpy(input,&_input[0]);
+  string _output=locus+"final_cities.dat";
+  char output[_output.size()+1];
+  strcpy(output,&_output[0]);
+  string _L_best=locus+"L_best.dat";
+  char L_best[_L_best.size()+1];
+  strcpy(L_best,&_L_best[0]);
+  /*string _L_average=locus+"L_average.dat";
+  char L_average[_L_average.size()+1];
+  strcpy(L_average,&_L_average[0]);*/
+  
+  anneal_tsp primo(input,rank);
+  primo.check_path();
+
+  int n_beta = 1000;//Number of changing of temperature inverse
+  double B_init=0.1;//Initial temperature
+  double B_final=40.1;//Final temperature
+  double B_gap=(B_final-B_init)/n_beta;
+  
+  int n_moves=10000;//Number of moves at each step
+
+  ofstream out_best;
+
+  out_best.open(L_best);
+  
+  for(int generations=0;generations<n_beta;generations++){  
+    primo.check_path();
+    
+    vector <double> acceptance_rate=primo.move(B_init+B_gap*generations,n_moves);
+
+    double migliore=primo.get_L();
+    
+    MPI_Gather(&migliore,1,MPI_DOUBLE,irecv,1,MPI_DOUBLE,0,MPI::COMM_WORLD);
+
+    if(rank==0){  
+      
+      out_best<<irecv[find_max(irecv,size)]<<endl;      
+      
+      if(generations%10==0){
+	cout<<endl<<endl<<"Gradino "<<generations<<", Beta = "<<B_init+B_gap*generations<<", L = "<<irecv[indice_max]<<endl;
+	cout<<"Acceptance rate: exchange = "<<acceptance_rate[0]<<", local_shift = "<<acceptance_rate[1]<<", local_permut = "<<acceptance_rate[2]<<endl;
+      }
+    }
+  }
+
+  
+  double migliore=primo.get_L();
+  
+  MPI_Gather(&migliore,1,MPI_DOUBLE,irecv,1,MPI_DOUBLE,0,MPI::COMM_WORLD);
+  
+  if(rank==0){  
+    MPI_Bcast ( irecv, 4, MPI_DOUBLE, 0, MPI::COMM_WORLD);
+  }
+
+  if(rank==find_max(irecv,size)){
+    primo.print_route(output);
+  }
+  out_best.close();
+
+  MPI::Finalize();
+  
+ return 0;
+}
+
+/****************************************************************
+*****************************************************************
+    _/    _/  _/_/_/  _/       Numerical Simulation Laboratory
+   _/_/  _/ _/       _/       Physics Department
+  _/  _/_/    _/    _/       Universita' degli Studi di Milano
+ _/    _/       _/ _/       Prof. D.E. Galli
+_/    _/  _/_/_/  _/_/_/_/ email: Davide.Galli@unimi.it
+*****************************************************************
+*****************************************************************/

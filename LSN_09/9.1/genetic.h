@@ -1,0 +1,109 @@
+/****************************************************************
+*****************************************************************
+    _/    _/  _/_/_/  _/       Numerical Simulation Laboratory
+   _/_/  _/ _/       _/       Physics Department
+  _/  _/_/    _/    _/       Universita' degli Studi di Milano
+ _/    _/       _/ _/       Prof. D.E. Galli
+_/    _/  _/_/_/  _/_/_/_/ email: Davide.Galli@unimi.it
+*****************************************************************
+*****************************************************************/
+
+#ifndef __genetic__
+#define __genetic__
+
+#include "random.h"
+#include <vector>
+
+using namespace std;
+
+struct chromosome{
+  vector<int> alleles;
+  double L;
+};
+
+// Small function to be exploited by sort_popul();
+bool sortByL(const  chromosome &lhs, const chromosome &rhs);
+
+//Probability of mutations
+const double prob_mutation=0.1;
+
+class gensalesman {
+  
+ private:
+  int N; //Numero di citta'
+  vector<chromosome> raw_population; //Vettore popolazione che contiene i cromosomi come elementi
+  vector<double> cities_x;
+  vector<double> cities_y; 
+  Random rnd; //Generatore
+  bool sorted; //Tells if the population has been sorted lately or not
+  
+//Questi membri, da decommentare anche nel costruttore e nel metodo marriage, servono a introdurre una forma di elitarismo.
+  /*
+  int n_marriage;
+  vector<int> elitary; 
+  */
+
+ public:
+  // Costruttore da un input_file che contiene come primo elemento il numero di citta', poi le posizioni delle citta' nel piano
+  gensalesman(const char* file_input);
+
+  // Costruttore analogo a quello sopra, che come secondo valore prende la riga da leggere nel file "Primes" per inizializzare il generatore di numeri casuali. Controllare quante righe ha il file "Primes".
+  gensalesman(const char* file_input,int n_riga);
+
+  // Distruttore
+  ~gensalesman();
+
+  // Get_N
+  int get_N()const{return N;}
+
+  //Gives 0 if everything is ok, 1 otherwise
+  bool check_population();
+
+  // Put the population in order by decreasing L
+  void sort_popul();
+
+  // Returns the best L of the population, it sorts if the population is disordered.
+  double best_L();
+
+  // Returns L averaged on the best half of the population, it sorts if the population is disordered.
+  double average_L();
+
+  // Print all the population, it sorts if the population is disordered.
+  void print_popul();
+
+  //Print the coordinates of the cities in the order the best element of the population tells you to visit them, print in the file you give
+  void print_bestroute(const char*);
+  
+  
+  //Various mutation methods:
+  //Gets single exchanges in the same alleles, with prob= prob_mutation
+  void exchange();
+  //Global shift, prob= prob_mutation
+  void global_shift();
+  //Local shift, prob= prob_mutation
+  void local_shift();
+  //Local permutation, prob= prob_mutation
+  void local_permut();
+  //Inversion, prob= prob_mutation
+  void inversion();
+
+  //ACHTUNG: This will call all the previous mutation methods
+  void mutate();
+  
+  //Method to get next generation
+  void marriage();
+  
+ 
+};
+
+#endif // __genetic__
+
+/****************************************************************
+*****************************************************************
+    _/    _/  _/_/_/  _/       Numerical Simulation Laboratory
+   _/_/  _/ _/       _/       Physics Department
+  _/  _/_/    _/    _/       Universita' degli Studi di Milano
+ _/    _/       _/ _/       Prof. D.E. Galli
+_/    _/  _/_/_/  _/_/_/_/ email: Davide.Galli@unimi.it
+*****************************************************************
+*****************************************************************/
