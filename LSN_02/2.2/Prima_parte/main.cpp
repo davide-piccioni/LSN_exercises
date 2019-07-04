@@ -46,7 +46,7 @@ int main (int argc, char *argv[]){
    ofstream file_out;
    file_out.open("risultati.dat");
 
-   unsigned int N=10000; //Ripetizioni esperimento
+   unsigned int N=1000000; //Ripetizioni esperimento
    unsigned int k=100; //Passi per ogni catena
 
    int * x=new int[N];//Coordinata x, ripetizione i-esima
@@ -55,7 +55,7 @@ int main (int argc, char *argv[]){
 
    double* raw=new double[N];//Distanza per tutte le catene a passo fissato
 
-   monteC stima(N,10);//Il secondo valore e' il numero dei blocchi
+   monteC stima(N,100);//Il secondo valore e' il numero dei blocchi
 
    //Inizializzo tutti
    for(unsigned int l=0;l<N;l++){
