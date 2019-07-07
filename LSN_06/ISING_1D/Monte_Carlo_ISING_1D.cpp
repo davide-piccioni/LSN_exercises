@@ -73,7 +73,7 @@ int main()
 }
 
 
-void Input(char* previous)//Se previous inserisci "0", genera nuovi spin random, altrimenti prendi dal file previous
+void Input(char* previous)//Se in previous inserisci "0", genera nuovi spin random, altrimenti prendi dal file previous
 {
   ifstream ReadInput;
   
