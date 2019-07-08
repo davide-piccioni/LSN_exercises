@@ -89,8 +89,8 @@ int main(){
   cout<<"Temperature: "<<temp.media()<<" "<<temp.errore()<<endl;
   cout<<"Pressure: "<<press.media()<<" "<<press.errore()<<endl;
 
-  //double a;
-  //cin>>a;
+  double a;
+  cin>>a;
     
   primo.ConfFinal_and_previous(config_f0,config_f1); 
 
